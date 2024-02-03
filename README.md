@@ -1,0 +1,2 @@
+npm start
+flask run
