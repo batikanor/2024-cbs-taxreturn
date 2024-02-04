@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import MuiAlert from '@mui/material/Alert';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { Container, Typography, Card, CardContent, Button, Snackbar, Grid, Box, TextField } from '@mui/material';
+import { Container, Typography, Card, CardContent, Button, Snackbar, Grid, Box, TextField, Checkbox, FormControlLabel } from '@mui/material';
+import io from 'socket.io-client';
 
 const theme = createTheme({
   palette: {
@@ -27,6 +28,7 @@ const theme = createTheme({
 });
 
 const backendUrl = 'http://localhost:5000';
+const socket = io(backendUrl); // Connect to Socket.IO server
 
 function App() {
   const [addedPersons, setAddedPersons] = useState([]);
@@ -35,7 +37,8 @@ function App() {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [llamaQuery, setLlamaQuery] = useState('');
   const [llamaResponse, setLlamaResponse] = useState('');
-  
+  const [showHtml, setShowHtml] = useState(true); 
+
   const handleCloseSnackbar = (event, reason) => {
     if (reason === 'clickaway') {
       return;
@@ -169,18 +172,31 @@ function App() {
 
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
           <Button variant="outlined" color="secondary" onClick={resetHtml}>
-            Reset HTML
+            Reset Target Webpage
           </Button>
           <Button variant="outlined" color="primary" onClick={addKlopp}>
             Add Klopp If Missing
           </Button>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={showHtml}
+                onChange={(e) => setShowHtml(e.target.checked)}
+                name="showHtmlCheckbox"
+              />
+            }
+            label="Show Target Webpage"
+          />
         </Box>
 
-        <Card sx={{ mt: 2 }}>
-          <CardContent>
-            <iframe src={htmlContent} style={{ width: '100%', height: '300px', border: 'none' }} title="HTML Content"></iframe>
-          </CardContent>
-        </Card>
+        {showHtml && (
+          <Card sx={{ mt: 2 }}>
+            <CardContent>
+              <iframe src={htmlContent} style={{ width: '100%', height: '300px', border: 'none' }} title="HTML Content"></iframe>
+            </CardContent>
+          </Card>
+        )}
+
 
         <Snackbar open={openSnackbar} autoHideDuration={6000} onClose={handleCloseSnackbar}>
           <MuiAlert onClose={handleCloseSnackbar} severity="success" elevation={6} variant="filled">
