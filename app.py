@@ -98,7 +98,7 @@ if not os.path.exists(HTML_FILE):
 
 def generate_llama_response(query): 
     prompt = f"Q: {query} A:"
-    output = LLM(prompt, max_tokens=None, stop=["Q:", "\n"], ) 
+    output = LLM(prompt, max_tokens=None, stop=["Q:", "\n"] ) 
     resp = output["choices"][0]["text"]
     print(f"{resp=}")
     return jsonify({'llama_data': resp})
@@ -106,7 +106,7 @@ def generate_llama_response(query):
 def generate_llama_fm(): 
     filled_template = FM_2.format(name=NAME, organization=ORGANIZATION, document=DOCUMENT ,excuse=EXCUSE) # enough for a hackathon demo!
     prompt = f"Rules: {filled_template} \n Professional Request for Data: "
-    output = LLM(prompt, max_tokens=None, stop=["Q:"], ) 
+    output = LLM(prompt, max_tokens=None, stop=["Q:"] ) 
     print(f"{output=}")
     resp = output["choices"][0]["text"]
     print(f"{resp=}")
@@ -116,7 +116,7 @@ def generate_llama_fr(pastConv):
     filled_template = FM_2.format(name=NAME, organization=ORGANIZATION, document=DOCUMENT ,excuse=EXCUSE) # enough for a hackathon demo!
 
     prompt = f"Rules: {filled_template} \n Past Converstation: {pastConv} \n Professional Response: "
-    output = LLM(prompt, max_tokens=None, stop=["Q:"], ) 
+    output = LLM(prompt, max_tokens=None, stop=["Q:"]) 
     print(f"{output=}")
     resp = output["choices"][0]["text"]
     print(f"{resp=}")
