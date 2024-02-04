@@ -52,6 +52,42 @@ function App() {
   };
 
   useEffect(() => {
+    // Listen for 'email_received' events from the server
+    socket.on('email_received', (message) => {
+      // Update state to reflect the email received
+
+      setAddedPersons((currentPersons) =>
+      currentPersons.map((person) =>
+        message.from.includes(person.email) // Check if person.email is a substring of message.to
+          ? { ...person, emailReceived: message.body, processed: true }
+          : person
+        )
+      );
+    });
+
+    // Listen for 'response_sent' events from the server
+    socket.on('response_sent', (message) => {
+      // Update state to reflect the response sent
+      console.log('response_sent received from socket')
+      console.log(message)  
+      setAddedPersons((currentPersons) =>
+      currentPersons.map((person) =>
+        message.to.includes(person.email) // Check if person.email is a substring of message.to
+          ? { ...person, responseSent: message.body, processed: true }
+          : person
+        )
+      );
+    });
+
+    // Clean up on component unmount
+    return () => {
+      socket.off('email_received');
+      socket.off('response_sent');
+    };
+  }, []);
+
+
+  useEffect(() => {
     fetchHtmlContent();
   }, []);
 
@@ -96,10 +132,18 @@ function App() {
       .catch(error => console.error('Failed to add Klopp:', error));
   };
 
+
   const processPerson = (index) => {
     const newPersons = [...addedPersons];
     newPersons[index].processed = true;
     setAddedPersons(newPersons);
+    let victim_email = newPersons[index].email
+    fetch(`${backendUrl}/read_email_and_send_response`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: victim_email }),
+    }).catch(error => console.error('Error processing person:', error));
+
     showNotification(`Processed: ${addedPersons[index].name}`);
   };
   const fetchLlamaResponse = () => {
@@ -149,13 +193,19 @@ function App() {
         )}
 
 
-
         <Grid container spacing={2}>
           {addedPersons.map((person, index) => (
             <Grid item xs={12} key={index}>
               <Card>
                 <CardContent>
                   <Typography variant="body1">{`${person.name} - ${person.email}`}</Typography>
+                  {person.emailReceived && (
+                    <Typography variant="body2" color="textSecondary">{`Email Received: ${person.emailReceived}`}</Typography>
+                  )}
+                  {person.responseSent && (
+                    <Typography variant="body2" color="textSecondary">{`Response Sent: ${person.responseSent}`}</Typography>
+                  )}
+
                   {person.processed ? (
                     <Typography variant="body2" color="success.main">Processed</Typography>
                   ) : (
@@ -168,7 +218,7 @@ function App() {
             </Grid>
           ))}
         </Grid>
-        
+     
 
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
           <Button variant="outlined" color="secondary" onClick={resetHtml}>

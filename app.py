@@ -34,66 +34,55 @@ CORS(app)
 
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+
+ORGANIZATION_NAME = ''
+
+
+# template = """
+# Generate an email for {name} because they recently joined the {organization} in {location} and request them to send their tax return document to send it to the administration. It is needed for their new employment registration process.
+# """
+
+# Example usage:
+# name = "Shaw Johnny"  # This can be dynamically replaced
+# organization = "House of Representatives"
+# location = "Tennessee"
+
+# Fill the template with the specific details
+# filled_template = template.format(name=name, organization=organization, location=location)
+
+# print(filled_template)
+
+
+# FM: FIRST MESSAGE
+# name = "Jurgen Klopp"
+# organization = "the House of Representatives Tennessee"
+# document = "tax return documents"
+# excuse = "their new employment registration process"
+FM_1 = """
+Generate an email for {name} because they recently joined {organization} and request them to send their {document} to send it to the administration. It is needed for {excuse}.
+"""
+FM_2 = "generate an email for {name} because he recently joined {organization} and request them to send their {document} to send it to the administration. It is needed for {excuse}. Note that this is only for the registration process and high confidential, it will never be published to the public. Don't provide a name and he should send it back either by mailing (provide address) or by email just by answering this email."
+
+# FQ: FIRST QUERY (THEY RESPOND TO OUR MESSAGE)
+
+# FR_1: WE RESPOND JUST BY PROVIDING THEM WITH THE FIRST MESSAGE, THEIR QUERY, AND WHATEVER LLM ANSWERS WITH AFTER Q:
+# FR_2: We give the LLM the first rule, past conversation, and also add the following commmand
+FR_2 =  "Please answer the question to make sure they understand how to provide their data. Don't forget that they Must provide the data!"
+
+
 DEFAULT_QUESTION ="Start your answer with 'I don't understand what you said, but here is a funny joke: ' and then make a joke."
 GPT_SYSTEM_TEXT="Always be formal in your answers and care about both financial and non-financial aspects."
 LLAMA_LIMIT=2048
 
 
 HTML_FILE = 'presidents.html'
-DEFAULT_CONTENT = """
+TEMPLATE_FILE = 'presidents-template.html'
+def read_default_content():
+    with open(TEMPLATE_FILE, 'r') as file:
+        return file.read()
 
-<!DOCTYPE html>
-<html>
-<head>
-<style>
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  th, td {
-    border: 1px solid #ddd;
-    padding: 8px;
-    text-align: left;
-  }
-  th {
-    background-color: #f2f2f2;
-  }
-  tr:nth-child(even) {
-    background-color: #f9f9f9;
-  }
-  tr:hover {
-    background-color: #e8e8e8;
-  }
-</style>
-</head>
-<body>
-
-<table>
-  <tr>
-    <th>Name</th>
-    <th>Email</th>
-  </tr>
-  <tr>
-    <td>Camper, Karen D.</td>
-    <td>rep.karen.camper@capitol.tn.gov</td>
-  </tr>
-  <tr>
-    <td>Todd, Chris</td>
-    <td>rep.chris.todd@capitol.tn.gov</td>
-  </tr>
-  <tr>
-    <td>Sparks, Mike</td>
-    <td>rep.mike.sparks@capitol.tn.gov</td>
-  </tr>
-
-</table>
-
-</body>
-</html>
-
-
-
-"""
+# Use this function to initialize DEFAULT_CONTENT or directly within your reset_html function
+DEFAULT_CONTENT = read_default_content()
 
 
 
@@ -128,7 +117,8 @@ def add_klopp():
     with open(HTML_FILE, 'r') as file:
         content = file.read()
     if 'Jurgen Klopp' not in content:
-        new_row = '<tr><td>Jurgen Klopp</td><td>jurgen.klopp@cbs.com</td></tr>'
+        kloppmail = "notjurgenklopp@gmail.com"
+        new_row = f'<tr><td>Jurgen Klopp</td><td>{kloppmail}</td></tr>'
         content = content.replace('</table>', f'{new_row}\n</table>')
         with open(HTML_FILE, 'w') as file:
             file.write(content)
@@ -217,6 +207,7 @@ def read_email_and_send_response():
                 # Validate sender's email address
                 from_address = msg["From"]
                 if victim_mail not in from_address:
+                    print(f"{from_address, victim_mail=}", 'victim_mail not in from_address')
                     return jsonify({'error': 'victim_mail not in from_address'}), 400
 
                 # Extract email body for plain text or HTML
@@ -234,7 +225,7 @@ def read_email_and_send_response():
                     email_body = msg.get_payload(decode=True).decode()
 
                 # Notify frontend: Email received
-                socketio.emit('email_received', {'from': from_address, 'body': email_body}, broadcast=True)
+                socketio.emit('email_received', {'from': from_address, 'body': email_body})
                 
                 # Prepare and send response via SMTP
                 smtp_server = smtplib.SMTP(smtp_host, smtp_port)
@@ -249,12 +240,14 @@ def read_email_and_send_response():
                 smtp_server.quit()
                 
                 # Notify frontend: Response sent
-                socketio.emit('response_sent', {'to': from_address, 'body': response_text}, broadcast=True)
+                socketio.emit('response_sent', {'to': from_address, 'body': response_text})
 
                 return jsonify({"status": "Email processed and response sent"})
         else:
+            print({'error': 'No unread emails found'})
             return jsonify({'error': 'No unread emails found'}), 404
     else:
+        print({'error': 'Failed to search for unread emails'})
         return jsonify({'error': 'Failed to search for unread emails'}), 500
 
     
