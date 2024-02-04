@@ -87,7 +87,7 @@ DEFAULT_CONTENT = read_default_content()
 
 
 
-llama2_path = 'C:/0_development/04_preparations/llama-2-7b-chat.Q5_K_M.gguf'
+llama2_path = 'D:\Downloads\llama-2-7b-chat.Q5_K_M.gguf'
 LLM = Llama(model_path=llama2_path, n_ctx=LLAMA_LIMIT)
 llama_tokenizer = LlamaTokenizerFast.from_pretrained("hf-internal-testing/llama-tokenizer")
 
