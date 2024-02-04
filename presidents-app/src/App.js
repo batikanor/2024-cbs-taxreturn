@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import MuiAlert from '@mui/material/Alert';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { Container, Typography, Card, CardContent, Button, Snackbar, Grid, Box, TextField, Checkbox, FormControlLabel } from '@mui/material';
+import { Container, Typography, Card, CardContent, Button, Snackbar, Grid, Box, TextField, Checkbox, FormControlLabel, Divider } from '@mui/material';
 import io from 'socket.io-client';
 
 const theme = createTheme({
@@ -52,6 +52,21 @@ function App() {
   };
 
   useEffect(() => {
+
+
+
+    socket.on('first_message_sent', (message) => {
+      // Update state to reflect the email received
+
+      setAddedPersons((currentPersons) =>
+      currentPersons.map((person) =>
+        message.to.includes(person.email) // Check if person.email is a substring of message.to
+          ? { ...person, emailSent: message.body, processed: true }
+          : person
+        )
+      );
+    });
+
     // Listen for 'email_received' events from the server
     socket.on('email_received', (message) => {
       // Update state to reflect the email received
@@ -144,7 +159,7 @@ function App() {
       body: JSON.stringify({ email: victim_email }),
     }).catch(error => console.error('Error processing person:', error));
 
-    showNotification(`Processed: ${addedPersons[index].name}`);
+    showNotification(`Processing: ${addedPersons[index].name}`);
   };
   const fetchLlamaResponse = () => {
     fetch(`${backendUrl}/generate_llama_response`, {
@@ -170,9 +185,9 @@ function App() {
     <ThemeProvider theme={theme}>
       <Container sx={{ my: 2, backgroundColor: 'background.default', p: 2 }}>
         <Typography variant="h4" gutterBottom>
-          A Project of Some Sorts
+          BiggerPhish
         </Typography>
-        <Box sx={{ mt: 2, mb: 2 }}>
+        {/* <Box sx={{ mt: 2, mb: 2 }}>
           <TextField
             label="Ask Llama"
             variant="outlined"
@@ -184,7 +199,7 @@ function App() {
           <Button variant="contained" color="primary" onClick={fetchLlamaResponse}>
             Get Response
           </Button>
-        </Box>
+        </Box> */}
         {llamaResponse && (
           <Box sx={{ mt: 2 }}>
             <Typography variant="body1">Llama Response:</Typography>
@@ -199,10 +214,13 @@ function App() {
               <Card>
                 <CardContent>
                   <Typography variant="body1">{`${person.name} - ${person.email}`}</Typography>
-                  {/* {person.emailReceived && (
-                    <Typography variant="body2" color="textSecondary">{`Email Received: ${person.emailReceived}`}</Typography>
-                  )} */}
-                  {person.emailReceived && Array.isArray(person.emailReceived) && person.emailReceived.length > 0 && (
+                  {person.emailSent && person.emailSent.length > 0 && (
+                    <>
+                      <Typography variant="body2" color="textSecondary">Email Sent:</Typography>
+                      <Typography variant="body2" color="textSecondary">{`${person.emailSent}`}</Typography>
+                    </>
+                  )}
+                  {/* {person.emailReceived && Array.isArray(person.emailReceived) && person.emailReceived.length > 0 && (
                     <>
                       <Typography variant="body2" color="textSecondary">Emails Received:</Typography>
                       <ul>
@@ -211,13 +229,26 @@ function App() {
                         ))}
                       </ul>
                     </>
+                  )} */}
+                  <Divider />
+
+                  {person.emailReceived && Array.isArray(person.emailReceived) && person.emailReceived.length > 0 && (
+                    <>
+                      {/* <Typography variant="body2" color="textSecondary">First Email Received:</Typography> */}
+                      {/* Render only the first (reality: last) email received */}
+                      <Typography variant="body2" color="textSecondary">{person.emailReceived[0]}</Typography>
+                    </>
                   )}
+                  <Divider />
+
                   {person.responseSent && (
                     <Typography variant="body2" color="textSecondary">{`Response Sent: ${person.responseSent}`}</Typography>
                   )}
+                  <Divider />
+
 
                   {person.processed ? (
-                    <Typography variant="body2" color="success.main">Processed</Typography>
+                    <Typography variant="body2" color="success.main">Processing</Typography>
                   ) : (
                     <Button variant="contained" color="primary" onClick={() => processPerson(index)}>
                       Process
