@@ -15,7 +15,8 @@ import smtplib
 from email.mime.text import MIMEText
 from email.parser import Parser
 from email.header import decode_header
-
+from bs4 import BeautifulSoup
+import time
 
 # Load the .env file
 load_dotenv()
@@ -52,12 +53,12 @@ ORGANIZATION_NAME = ''
 
 # print(filled_template)
 
+NAME = "Jurgen Klopp"
+ORGANIZATION = "the House of Representatives Tennessee"
+DOCUMENT = 'tax return documents'
+EXCUSE = 'their new employment registration process'
 
-# FM: FIRST MESSAGE
-# name = "Jurgen Klopp"
-# organization = "the House of Representatives Tennessee"
-# document = "tax return documents"
-# excuse = "their new employment registration process"
+
 FM_1 = """
 Generate an email for {name} because they recently joined {organization} and request them to send their {document} to send it to the administration. It is needed for {excuse}.
 """
@@ -96,13 +97,26 @@ if not os.path.exists(HTML_FILE):
         file.write(DEFAULT_CONTENT)
 
 def generate_llama_response(query): 
-    global llama_response_str
     prompt = f"Q: {query} A:"
     output = LLM(prompt, max_tokens=None, stop=["Q:", "\n"], ) 
     resp = output["choices"][0]["text"]
     print(f"{resp=}")
     return jsonify({'llama_data': resp})
 
+def generate_llama_fm(query): 
+    filled_template = FM_2.format(name=NAME, organization=ORGANIZATION, document=DOCUMENT ,excuse=EXCUSE) # enough for a hackathon demo!
+    prompt = f"Rules: {filled_template} \n Conversation: {query} \n Professional Answer: "
+    output = LLM(prompt, max_tokens=None, stop=["Q:", "\n"], ) 
+    resp = output["choices"][0]["text"]
+    print(f"{resp=}")
+    return resp
+
+def generate_llama_fr(query): 
+    prompt = f"Q: {query} A:"
+    output = LLM(prompt, max_tokens=None, stop=["Q:", "\n"], ) 
+    resp = output["choices"][0]["text"]
+    print(f"{resp=}")
+    return jsonify({'llama_data': resp})
 
 @app.route('/generate_llama_response', methods=['POST'])
 def generate_llama_response_route():
@@ -184,21 +198,36 @@ def handle_send_email():
 def read_email_and_send_response():
     data = request.json
     victim_mail = data.get("email")
+
+
     if not victim_mail:
         return jsonify({'error': 'No victim mail provided'}), 400
     
-    # Connect to the email server
-    mail = imaplib.IMAP4_SSL(imap_host, imap_port)
-    mail.login(email_user, email_pass)
-    mail.select('inbox')
 
-    # Search for all unread emails
-    status, email_ids = mail.search(None, 'UNSEEN')
-    if status == 'OK':
-        if email_ids[0]:  # Ensure there is at least one unread email
+    # first: send an email if no email has been sent before
+    # we can assume no email was sent before as this is a hackathon
+    
+
+
+
+
+    found_email = False
+    attempts = 0
+    # 1000 -> 15mins
+    max_attempts = 2000 # Set a maximum attempt limit to avoid infinite loop
+    sleep_duration = 10  # Time in seconds to wait between each check
+
+    while not found_email and attempts < max_attempts:
+        
+        # Connect to the email server
+        mail = imaplib.IMAP4_SSL(imap_host, imap_port)
+        mail.login(email_user, email_pass)
+        mail.select('inbox')
+
+        # Search for all unread emails
+        status, email_ids = mail.search(None, 'UNSEEN')
+        if status == 'OK' and email_ids[0]:
             latest_email_id = email_ids[0].split()[-1]  # Get the latest unread email
-            
-            # Fetch the email's body
             status, data = mail.fetch(latest_email_id, '(RFC822)')
             if status == 'OK':
                 # Parse the email content
@@ -223,15 +252,44 @@ def read_email_and_send_response():
                             email_body = part.get_payload(decode=True).decode()
                 else:
                     email_body = msg.get_payload(decode=True).decode()
+                
+                # Convert HTML to plain text
+                soup = BeautifulSoup(email_body, "html.parser")
+                text = soup.get_text(separator="\n")
+                print(f"{text=}")
+                index_of_am = text.find("Am ")
+                first_element = text[:index_of_am].strip()
+                substrings = re.findall(r'<(.*?)Am ', text, re.DOTALL)
+                substrings = [substr.replace(">:", ":") for substr in substrings]
+                last_part = text.rsplit('>', 1)[-1].strip()
+
+                listy = list()
+                listy.append("Last Question: "+ first_element)
+                listy.extend(substrings)
+                listy.append("First Question: "+ last_part)
+                listy
+
+                # Clean up each message
+                messages = [message.strip() for message in listy]
 
                 # Notify frontend: Email received
-                socketio.emit('email_received', {'from': from_address, 'body': email_body})
+                socketio.emit('email_received', {'from': from_address, 'body': messages})
                 
+
+                # llm answer generate
+                joined_messages = '\n\n'.join(messages)
+                resp = generate_llama_fm(joined_messages)
+                # notify frontend: answer generated
+                socketio.emit('answer_generated', {'to': from_address, 'body': resp})
+
+
+
                 # Prepare and send response via SMTP
                 smtp_server = smtplib.SMTP(smtp_host, smtp_port)
                 smtp_server.starttls()
                 smtp_server.login(email_user, email_pass)
-                response_text = email_body + "\nack"  # Customize your response
+                # response_text = email_body + "\nack"  # Customize your response
+                response_text = resp
                 msg = MIMEText(response_text)
                 msg['From'] = email_user
                 msg['To'] = from_address
@@ -242,15 +300,21 @@ def read_email_and_send_response():
                 # Notify frontend: Response sent
                 socketio.emit('response_sent', {'to': from_address, 'body': response_text})
 
+                # 
+                found_email = True
+
                 return jsonify({"status": "Email processed and response sent"})
+            # Process the latest unread email if found
+            # Email processing logic goes here...
+            # Make sure to break out of the loop after processing the email
         else:
-            print({'error': 'No unread emails found'})
-            return jsonify({'error': 'No unread emails found'}), 404
-    else:
-        print({'error': 'Failed to search for unread emails'})
-        return jsonify({'error': 'Failed to search for unread emails'}), 500
+            time.sleep(sleep_duration)  # Wait before checking again
+            print(f"Waiting for the next unread email check")
+            attempts += 1
+    if not found_email:
+        return jsonify({'error': 'No unread emails found after multiple attempts'}), 404
 
     
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, port=5000)
+    socketio.run(app, debug=True, threaded=True, port=5000)

@@ -199,8 +199,18 @@ function App() {
               <Card>
                 <CardContent>
                   <Typography variant="body1">{`${person.name} - ${person.email}`}</Typography>
-                  {person.emailReceived && (
+                  {/* {person.emailReceived && (
                     <Typography variant="body2" color="textSecondary">{`Email Received: ${person.emailReceived}`}</Typography>
+                  )} */}
+                  {person.emailReceived && Array.isArray(person.emailReceived) && person.emailReceived.length > 0 && (
+                    <>
+                      <Typography variant="body2" color="textSecondary">Emails Received:</Typography>
+                      <ul>
+                        {person.emailReceived.map((email, emailIndex) => (
+                          <li key={emailIndex}>{email}</li>
+                        ))}
+                      </ul>
+                    </>
                   )}
                   {person.responseSent && (
                     <Typography variant="body2" color="textSecondary">{`Response Sent: ${person.responseSent}`}</Typography>
