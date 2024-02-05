@@ -37,7 +37,7 @@ function App() {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [llamaQuery, setLlamaQuery] = useState('');
   const [llamaResponse, setLlamaResponse] = useState('');
-  const [showHtml, setShowHtml] = useState(true); 
+  const [showHtml, setShowHtml] = useState(false); 
 
   const handleCloseSnackbar = (event, reason) => {
     if (reason === 'clickaway') {
